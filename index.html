@@ -111,16 +111,21 @@
         function activarMicroblink() {
             const el = document.getElementById('scanner-element');
             const diag = document.getElementById('diag-msg');
+
+            const showDiag = (message) => {
+                diag.style.display = "block";
+                diag.innerHTML = message;
+            };
             
             // Verificación inmediata de cabeceras
             if (!window.crossOriginIsolated) {
-                diag.style.display = "block";
-                diag.innerHTML = "<b>BLOQUEO DE SEGURIDAD:</b> Netlify no está enviando las cabeceras correctas. Asegúrate de que el archivo <u>netlify.toml</u> NO tenga barras invertidas antes de los corchetes.";
+                showDiag("<b>BLOQUEO DE SEGURIDAD:</b> Netlify no está enviando las cabeceras correctas. Asegúrate de que el archivo <u>netlify.toml</u> NO tenga barras invertidas antes de los corchetes.");
             }
 
             el.licenseKey = "sRwCABpjaXZpZXMtZWxyZXRlbi5uZXRsaWZ5LmFwcAZsZXlKRGNtVmhkR1ZrVDI0aU9qRTNOekEwTVRBeU9UZ3hNREVzSWtOeVpXRjBaV1JHYjNJaU9pSXhNalV5TXpOak1pMDBZVEJoTFRSaFlXUXRZakZpTUMwek16WmtOVGt5WWprNVltSWlmUT092SU00NPl1EE7Or7AQ/+k8AH7fKyoRNnt7LKBap1KCLGHkVDw6lbzEisHiHyujB58cu6n6X8VcsBzHI6FRVVECQAh764cagB9G0W7T/3x1UrwXEdGY2LghcD3VjyNYA==";
             el.recognizers = ['BlinkIdRecognizer'];
             el.engineLocation = "https://cdn.jsdelivr.net/npm/@microblink/blinkid-in-browser-sdk@5.16.0/resources/";
+            el.cameraFacing = "environment";
 
             let p = 0;
             const t = setInterval(() => {
@@ -131,6 +136,16 @@
             el.addEventListener('ready', () => {
                 updateProgress(100, "¡Listo!");
                 setTimeout(() => document.getElementById('loading-overlay').style.display = 'none', 500);
+            });
+
+            el.addEventListener('error', (ev) => {
+                const detail = ev?.detail?.message || ev?.detail || "Error desconocido inicializando el motor.";
+                showDiag(`<b>ERROR DEL MOTOR:</b> ${detail}`);
+            });
+
+            el.addEventListener('scanError', (ev) => {
+                const detail = ev?.detail?.message || ev?.detail || "Error desconocido de escaneo.";
+                showDiag(`<b>ERROR DE ESCANEO:</b> ${detail}`);
             });
 
             el.addEventListener('scanSuccess', async (ev) => {
@@ -144,6 +159,20 @@
                     alert("Cédula Registrada: " + doc);
                 }
             });
+
+            if (!window.isSecureContext) {
+                showDiag("<b>ENTORNO INSEGURO:</b> El escáner necesita HTTPS para acceder a la cámara.");
+            }
+
+            if (!navigator.mediaDevices?.getUserMedia) {
+                showDiag("<b>CÁMARA NO DISPONIBLE:</b> El navegador no soporta getUserMedia o está bloqueado.");
+            }
+
+            try {
+                el.start?.();
+            } catch (error) {
+                showDiag(`<b>FALLO AL INICIAR:</b> ${error?.message || error}`);
+            }
         }
 
         async function cargarDatos() {
